@@ -56,6 +56,7 @@ public class StarterBotDrive extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor leftDrive = null;
     private DcMotor rightDrive = null;
+    private DcMotor intake = null;
 
     @Override
     public void runOpMode() {
@@ -67,6 +68,10 @@ public class StarterBotDrive extends LinearOpMode {
         // step (using the FTC Robot Controller app on the phone).
         leftDrive  = hardwareMap.get(DcMotor.class, "left_drive");
         rightDrive = hardwareMap.get(DcMotor.class, "right_drive");
+
+        // tryGet returns null instead of crashing if "intake" isn't in the configuration,
+        // so the robot can still drive before the intake is wired up.
+        intake = hardwareMap.tryGet(DcMotor.class, "intake");
 
         // To drive forward, most robots need the motor on one side to be reversed, because the axles point in opposite directions.
         // Pushing the left stick forward MUST make robot go forward. So adjust these two lines based on your first test drive.
@@ -104,9 +109,21 @@ public class StarterBotDrive extends LinearOpMode {
             leftDrive.setPower(leftPower);
             rightDrive.setPower(rightPower);
 
+            // Intake: hold right bumper to collect, hold left bumper to push balls back out.
+            double intakePower = 0.0;
+            if (gamepad1.right_bumper) {
+                intakePower = 1.0;
+            } else if (gamepad1.left_bumper) {
+                intakePower = -1.0;
+            }
+            if (intake != null) {
+                intake.setPower(intakePower);
+            }
+
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
+            telemetry.addData("Intake", intake == null ? "not in configuration" : String.format("%.2f", intakePower));
             telemetry.update();
         }
     }
