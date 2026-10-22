@@ -72,10 +72,10 @@ public class StarterBotDrive extends LinearOpMode {
     private CRServo feeder = null;
 
     // Launcher speed is in encoder ticks per second. The launcher motor has 28 ticks per
-    // revolution, so 1000 ticks/sec is about 2140 rpm. goBILDA's example uses 1250, which
-    // was too fast for our launcher, so we start lower. The driver adjusts it with the D-pad;
-    // once we find the speed that scores, put that number here.
-    private static final double LAUNCHER_START_VELOCITY = 1000;
+    // revolution, so 1250 ticks/sec is about 2680 rpm. 1250 scored in our tests against a
+    // mock Hive (opening 53.5-65.6 in high). It's also goBILDA's number for this launcher.
+    // The driver can still adjust it during a match with the D-pad.
+    private static final double LAUNCHER_START_VELOCITY = 1250;
     private static final double LAUNCHER_STEP = 50;          // one D-pad press changes it by this much
     private static final double LAUNCHER_LOWEST = 300;
     private static final double LAUNCHER_HIGHEST = 2400;
