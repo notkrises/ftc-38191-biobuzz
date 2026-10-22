@@ -32,6 +32,7 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
@@ -56,6 +57,18 @@ public class ClassBotDrive extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
     private DcMotor leftDrive = null;
     private DcMotor rightDrive = null;
+    private DcMotor arm = null;
+
+    // Arm speeds. Lowering is slower because gravity helps pull the arm down.
+    private static final double ARM_UP_POWER = 0.5;
+    private static final double ARM_DOWN_POWER = -0.3;
+
+    private Servo claw = null;
+
+    // Claw positions, from 0.0 to 1.0. These are starting guesses close to the middle,
+    // so the claw can't strain against its own frame. Adjust after the first test.
+    private static final double CLAW_OPEN = 0.6;
+    private static final double CLAW_CLOSED = 0.4;
 
     @Override
     public void runOpMode() {
@@ -67,6 +80,19 @@ public class ClassBotDrive extends LinearOpMode {
         // step (using the FTC Robot Controller app on the phone).
         leftDrive  = hardwareMap.get(DcMotor.class, "left_drive");
         rightDrive = hardwareMap.get(DcMotor.class, "right_drive");
+
+        // tryGet returns null instead of crashing if "arm" isn't in the configuration,
+        // so the robot can still drive without it.
+        arm = hardwareMap.tryGet(DcMotor.class, "arm");
+        if (arm != null) {
+            // BRAKE makes the motor resist turning when the power is zero,
+            // so the arm holds its position instead of dropping when you let go.
+            arm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        }
+
+        // The claw is not given a position here on purpose: a servo doesn't move until it's
+        // told a position, and in a match the robot must not move between INIT and START.
+        claw = hardwareMap.tryGet(Servo.class, "claw");
 
         // To drive forward, most robots need the motor on one side to be reversed, because the axles point in opposite directions.
         // Pushing the left stick forward MUST make robot go forward. So adjust these two lines based on your first test drive.
@@ -104,9 +130,39 @@ public class ClassBotDrive extends LinearOpMode {
             leftDrive.setPower(leftPower);
             rightDrive.setPower(rightPower);
 
+            // Arm: hold right bumper to raise, hold left bumper to lower.
+            double armPower = 0.0;
+            if (gamepad1.right_bumper) {
+                armPower = ARM_UP_POWER;
+            } else if (gamepad1.left_bumper) {
+                armPower = ARM_DOWN_POWER;
+            }
+            if (arm != null) {
+                arm.setPower(armPower);
+            }
+
+            // Claw: press A to open, B to close.
+            if (claw != null) {
+                if (gamepad1.a) {
+                    claw.setPosition(CLAW_OPEN);
+                } else if (gamepad1.b) {
+                    claw.setPosition(CLAW_CLOSED);
+                }
+            }
+
             // Show the elapsed game time and wheel power.
             telemetry.addData("Status", "Run Time: " + runtime.toString());
             telemetry.addData("Motors", "left (%.2f), right (%.2f)", leftPower, rightPower);
+            // Raw stick readings. With hands off the gamepad, both should be 0.00.
+            telemetry.addData("Sticks", "drive (%.2f), turn (%.2f)", drive, turn);
+            telemetry.addData("Arm", arm == null ? "not in configuration" : String.format("%.2f", armPower));
+            if (claw == null) {
+                telemetry.addData("Claw", "not in configuration");
+            } else if (Double.isNaN(claw.getPosition())) {
+                telemetry.addData("Claw", "press A or B");
+            } else {
+                telemetry.addData("Claw", "%.2f", claw.getPosition());
+            }
             telemetry.update();
         }
     }
