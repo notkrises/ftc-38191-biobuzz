@@ -3,11 +3,15 @@ package org.firstinspires.ftc.teamcode;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.VoltageSensor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
 /*
  * TEST AUTONOMOUS: drive forward an exact distance using the encoders, then stop.
  * Measure how far it actually went to check COUNTS_PER_INCH.
+ *
+ * During INIT, D-pad left/right picks the distance: 12, 24, or 48 inches (used for the
+ * "Encoder driving accuracy at different distances" lab). The battery voltage is shown too.
  *
  * Driving by distance instead of time means the robot goes the same distance whether the
  * battery is full or low. Once this is accurate, the same method goes into the StarterBot's
@@ -15,7 +19,7 @@ import com.qualcomm.robotcore.util.ElapsedTime;
  *
  * Configuration names: left_drive, right_drive (same as Class Bot Drive).
  */
-@Autonomous(name = "Class Bot Drive 24 in", group = "Class Bot", preselectTeleOp = "Class Bot Drive")
+@Autonomous(name = "Class Bot Drive Distance", group = "Class Bot", preselectTeleOp = "Class Bot Drive")
 public class ClassBotDriveDistance extends LinearOpMode {
 
     // Encoder counts per inch of travel, for the Class Bot. REV's spec sheet suggests 47.5;
@@ -26,10 +30,13 @@ public class ClassBotDriveDistance extends LinearOpMode {
     // Too short = raise it. Too far = lower it.
     private static final double COUNTS_PER_INCH = 75.4;
 
-    private static final double DISTANCE_INCHES = 24.0;
+    // The distances the D-pad can pick during INIT. Starts on 24 in.
+    private static final double[] DISTANCES_INCHES = {12.0, 24.0, 48.0};
+    private static final int START_CHOICE = 1;
     private static final double DRIVE_POWER = 0.4;
     // If it hasn't arrived after this long, something's wrong (like an unplugged encoder): stop.
-    private static final double TIMEOUT_SECONDS = 5.0;
+    // Long enough for the 48 in drive.
+    private static final double TIMEOUT_SECONDS = 8.0;
 
     @Override
     public void runOpMode() {
@@ -40,11 +47,31 @@ public class ClassBotDriveDistance extends LinearOpMode {
         leftDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rightDrive.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        telemetry.addData("Ready", "will drive %.0f inches", DISTANCE_INCHES);
-        telemetry.update();
-        waitForStart();
+        // During INIT: pick the distance with the D-pad, and show the battery voltage so it can be
+        // recorded for the lab. The "WasDown" flags make one press move one step.
+        VoltageSensor battery = hardwareMap.voltageSensor.iterator().next();
+        int choice = START_CHOICE;
+        boolean leftWasDown = false;
+        boolean rightWasDown = false;
+        while (opModeInInit()) {
+            if (gamepad1.dpad_right && !rightWasDown) {
+                choice = Math.min(choice + 1, DISTANCES_INCHES.length - 1);
+            }
+            if (gamepad1.dpad_left && !leftWasDown) {
+                choice = Math.max(choice - 1, 0);
+            }
+            rightWasDown = gamepad1.dpad_right;
+            leftWasDown = gamepad1.dpad_left;
 
-        driveInches(leftDrive, rightDrive, DISTANCE_INCHES);
+            telemetry.addData("Distance", "%.0f in  (D-pad left/right: 12, 24, 48)", DISTANCES_INCHES[choice]);
+            telemetry.addData("Battery", "%.2f V  <- record this", battery.getVoltage());
+            telemetry.update();
+        }
+        if (isStopRequested()) {
+            return;
+        }
+
+        driveInches(leftDrive, rightDrive, DISTANCES_INCHES[choice]);
 
         // Put the motors back in normal mode. A motor's mode stays on the robot after a program
         // ends, and Class Bot Drive can't be driven while the motors are in RUN_TO_POSITION.
